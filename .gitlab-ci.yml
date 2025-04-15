@@ -1,0 +1,9 @@
+stages:
+  - test
+
+test_job:
+  stage: test
+  script:
+    - echo "Testando o GitLab Runner"
+    - uname -a  # Exibe informações sobre o sistema para garantir que o runner está funcionando corretamente
+    - echo "Testando o ambiente do runner"
