@@ -1,9 +1,14 @@
 stages:
   - test
 
+variables:
+  GIT_REPO_URL: "http://gitlab:30080/${CI_PROJECT_PATH}.git"
+
 test_job:
   stage: test
   script:
-    - echo "Testando o GitLab Runner"
-    - uname -a  # Exibe informações sobre o sistema para garantir que o runner está funcionando corretamente
-    - echo "Testando o ambiente do runner"
+    - echo "Clonando repositório manualmente..."
+    - rm -rf *
+    - git clone "$GIT_REPO_URL" .
+    - echo "Testando ambiente do runner"
+    - uname -a
