@@ -1,0 +1,86 @@
+#  k3d cluster create -p "8000:30000@loadbalancer" --agents 2
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: payment-gateway
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: payment-gateway
+  template:
+    metadata:
+      labels:
+        app: payment-gateway
+    spec:
+      containers:
+      - name: payment-gateway
+        image: carlos0406/payment-gateway-go
+        env:
+        - name: HTTP_PORT
+          value: "8080"
+        - name: DB_HOST
+          value: "db"
+        - name: DB_USER
+          value: "postgres"
+        - name: DB_PASSWORD
+          value: "postgres"
+        - name: DB_NAME
+          value: "gateway"
+        - name: DB_PORT
+          value: "5432"
+        - name: DB_SSLMODE
+          value: "disable"
+        ports:
+        - containerPort: 8080
+        resources:
+          limits:
+            memory: "128Mi"
+            cpu: "500m"
+          requests:
+            memory: "64Mi"
+            cpu: "250m"
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: payment-gateway-service
+spec:
+  type: LoadBalancer
+  selector:
+    app: payment-gateway
+  ports:
+  - port: 8001
+    targetPort: 8080
+    nodePort: 30001
+
+---
+apiVersion: networking.istio.io/v1
+kind: Gateway
+metadata:
+  name: ingress-gateway-payment
+spec:
+  selector:
+    istio: ingressgateway
+  servers:
+    - port:
+        number: 80
+        name: http
+        protocol: http2
+      hosts:
+        - "*.localdev"
+---
+apiVersion: networking.istio.io/v1
+kind: VirtualService
+metadata:
+  name: payment-gateway-vs
+spec:
+  hosts:
+    - "payment.localdev"
+  gateways:
+    - ingress-gateway-payment
+  http:
+    - route:
+        - destination:
+            host: payment-gateway-service
