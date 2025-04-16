@@ -1,6 +1,7 @@
 stages:
   - test
 
+
 variables:
   GIT_STRATEGY: none
   GIT_REPO_URL: "http://gitlab:30080/${CI_PROJECT_PATH}.git"
