@@ -1,0 +1,78 @@
+# além dessa config é preciso 
+# variables:
+  # GIT_STRATEGY: none
+  # GIT_REPO_URL: "http://gitlab:30080/${CI_PROJECT_PATH}.git"
+# e no cd /etc/gitlab-runner alterar network_mode = "gitlab_network_2"/ ou o nome da network em questão como my-gitlab_gitlab_network_2
+version: '3.8'
+
+services:
+  gitlab:
+    image: gitlab/gitlab-ce:latest
+    container_name: gitlab
+    restart: always
+    hostname: 'umbrel.local'
+    environment:
+      GITLAB_OMNIBUS_CONFIG: |
+        external_url 'http://umbrel.local:30080'
+        nginx['listen_port'] = 30080
+        nginx['listen_https'] = false
+        gitlab_rails['gitlab_shell_ssh_port'] = 30022
+        gitlab_rails['initial_root_password'] = 'chas0406%'
+        gitlab_rails['initial_shared_runners_registration_token'] = 'shared-runners-token'
+        gitlab_rails['initial_root_email'] = 'carlos@example.com'
+        gitlab_rails['initial_root_name'] = 'carlos'
+    ports:
+      - '30080:30080'
+      - '30443:443'
+      - '30022:22'
+    volumes:
+      - gitlab_config_2:/etc/gitlab
+      - gitlab_logs_2:/var/log/gitlab
+      - gitlab_data_2:/var/opt/gitlab
+    shm_size: '256m'
+    networks:
+      - gitlab_network_2
+
+  gitlab-runner:
+    image: gitlab/gitlab-runner:alpine
+    container_name: gitlab-runner
+    restart: always
+    volumes:
+      - gitlab_runner_config_2:/etc/gitlab-runner
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      - REGISTRATION_TOKEN=shared-runners-token
+      - CI_SERVER_URL=http://gitlab:30080
+      - RUNNER_NAME=gitlab-runner
+      - RUNNER_EXECUTOR=docker
+      - DOCKER_IMAGE=alpine:latest
+    networks:
+      - gitlab_network_2
+    depends_on:
+      - gitlab
+    entrypoint: >
+      sh -c "
+        if [ ! -f /etc/gitlab-runner/config.toml ]; then
+          gitlab-runner register --non-interactive \
+            --url \"$CI_SERVER_URL\" \
+            --registration-token \"$REGISTRATION_TOKEN\" \
+            --executor \"$RUNNER_EXECUTOR\" \
+            --docker-image \"$DOCKER_IMAGE\" \
+            --docker-network-mode gitlab_network_2 \
+            --name \"$RUNNER_NAME\" \
+            --tag-list 'docker,local' \
+            --run-untagged='true' \
+            --locked='false';
+        fi &&
+        gitlab-runner run --user=gitlab-runner --working-directory=/home/gitlab-runner
+      "
+
+volumes:
+  gitlab_config_2:
+  gitlab_logs_2:
+  gitlab_data_2:
+  gitlab_runner_config_2:
+
+networks:
+  gitlab_network_2:
+    driver: bridge
